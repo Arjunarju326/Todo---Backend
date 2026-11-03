@@ -77,3 +77,4 @@ The API will be available at `http://127.0.0.1:8000/api/`.
 - `GET/POST/PATCH/DELETE /api/notes` — Quick capture inbox notes.
 - `GET/PUT /api/settings` — User preferences, currency, and database latency.
 - `POST /api/seed` — Seed or reset demo data.
+
