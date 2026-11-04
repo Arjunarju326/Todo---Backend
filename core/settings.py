@@ -133,12 +133,14 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 # Sessions (browser hits Next.js rewrite on same origin)
+# USE_HTTPS=false when serving over plain HTTP (e.g. VPS :8090 without TLS)
+USE_HTTPS = clean_env('USE_HTTPS', 'false' if PLATFORM == 'DEV' else 'true').lower() in ('1', 'true', 'yes')
 SESSION_COOKIE_NAME = 'dayflow_sessionid'
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = PLATFORM != 'DEV'
+SESSION_COOKIE_SECURE = USE_HTTPS
 CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = PLATFORM != 'DEV'
+CSRF_COOKIE_SECURE = USE_HTTPS
 
 # Django REST Framework
 REST_FRAMEWORK = {
