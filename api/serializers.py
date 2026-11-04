@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import (
-    Task, Transaction, Debt, Habit,
+    Task, Transaction, Debt, Bill, Habit,
     LearningGoal, JobApplication, Note, UserSettings
 )
 
@@ -55,6 +55,40 @@ class DebtSerializer(serializers.ModelSerializer):
 
     def get__id(self, obj):
         return str(obj.id)
+
+
+class BillSerializer(serializers.ModelSerializer):
+    _id = serializers.SerializerMethodField()
+    amount = serializers.FloatField(required=False, default=0)
+    rechargeDate = serializers.DateField(source='recharge_date')
+    planDays = serializers.IntegerField(source='plan_days', required=False, default=28)
+    remindDaysBefore = serializers.IntegerField(source='remind_days_before', required=False, default=3)
+    isActive = serializers.BooleanField(source='is_active', required=False, default=True)
+    expiresOn = serializers.SerializerMethodField()
+    daysLeft = serializers.SerializerMethodField()
+    reminderStatus = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Bill
+        fields = [
+            'id', '_id', 'title', 'amount', 'category',
+            'recharge_date', 'rechargeDate', 'plan_days', 'planDays',
+            'remind_days_before', 'remindDaysBefore', 'notes',
+            'is_active', 'isActive', 'expiresOn', 'daysLeft', 'reminderStatus',
+            'created_at', 'updated_at',
+        ]
+
+    def get__id(self, obj):
+        return str(obj.id)
+
+    def get_expiresOn(self, obj):
+        return obj.expires_on.isoformat()
+
+    def get_daysLeft(self, obj):
+        return obj.days_left
+
+    def get_reminderStatus(self, obj):
+        return obj.reminder_status
 
 
 class HabitSerializer(serializers.ModelSerializer):

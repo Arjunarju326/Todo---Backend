@@ -1,10 +1,19 @@
 from django.urls import path
 from .views import (
     DashboardView, TasksView, FinanceView, GrowthView,
-    HabitsView, NotesView, SettingsView, SeedView
+    HabitsView, NotesView, SettingsView, SeedView,
+    AuthLoginView, AuthLogoutView, AuthMeView, AuthRegisterView,
 )
 
 urlpatterns = [
+    path('auth/login', AuthLoginView.as_view(), name='auth_login'),
+    path('auth/login/', AuthLoginView.as_view(), name='auth_login_slash'),
+    path('auth/logout', AuthLogoutView.as_view(), name='auth_logout'),
+    path('auth/logout/', AuthLogoutView.as_view(), name='auth_logout_slash'),
+    path('auth/me', AuthMeView.as_view(), name='auth_me'),
+    path('auth/me/', AuthMeView.as_view(), name='auth_me_slash'),
+    path('auth/register', AuthRegisterView.as_view(), name='auth_register'),
+    path('auth/register/', AuthRegisterView.as_view(), name='auth_register_slash'),
     path('dashboard', DashboardView.as_view(), name='dashboard'),
     path('dashboard/', DashboardView.as_view(), name='dashboard_slash'),
     path('tasks', TasksView.as_view(), name='tasks'),

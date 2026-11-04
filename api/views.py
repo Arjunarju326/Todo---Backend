@@ -1,35 +1,174 @@
 import time
 from datetime import datetime, time as dtime
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
 from django.utils import timezone
 from django.db import connection
 from django.db.models import Sum
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from .models import (
-    Task, Transaction, Debt, Habit,
+    Task, Transaction, Debt, Bill, Habit,
     LearningGoal, JobApplication, Note, UserSettings
 )
 from .serializers import (
-    TaskSerializer, TransactionSerializer, DebtSerializer,
+    TaskSerializer, TransactionSerializer, DebtSerializer, BillSerializer,
     HabitSerializer, LearningGoalSerializer, JobApplicationSerializer,
     NoteSerializer, UserSettingsSerializer
 )
 from core.settings import DB_HOST, DB_NAME
 
+DEFAULT_USERNAME = "arjun"
+DEFAULT_PASSWORD = "dayflow123"
+DEFAULT_DISPLAY_NAME = "Arjun"
+
+
 def get_or_create_settings():
     settings = UserSettings.objects.first()
     if not settings:
         settings = UserSettings.objects.create(
-            user_name="Arjun",
-            monthly_income=15000,
-            monthly_emi_commitment=4500,
-            savings_target=1000,
+            user_name=DEFAULT_DISPLAY_NAME,
+            monthly_income=0,
+            monthly_emi_commitment=0,
+            savings_target=0,
             currency="₹",
             timezone="Asia/Kolkata"
         )
     return settings
+
+
+def ensure_default_user():
+    user, created = User.objects.get_or_create(
+        username=DEFAULT_USERNAME,
+        defaults={
+            "email": "arjun@dayflow.app",
+            "first_name": DEFAULT_DISPLAY_NAME,
+            "is_staff": False,
+            "is_superuser": False,
+        },
+    )
+    if created:
+        user.set_password(DEFAULT_PASSWORD)
+        user.save()
+    return user
+
+
+def serialize_user(user):
+    settings = get_or_create_settings()
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email or "",
+        "displayName": settings.user_name or user.first_name or user.username,
+        "currency": settings.currency or "₹",
+    }
+
+
+class AuthLoginView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        try:
+            ensure_default_user()
+            username = (request.data.get("username") or "").strip()
+            password = request.data.get("password") or ""
+            if not username or not password:
+                return Response(
+                    {"success": False, "error": "Username and password are required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            user = authenticate(request, username=username, password=password)
+            if user is None:
+                return Response(
+                    {"success": False, "error": "Invalid username or password"},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+            login(request, user)
+            return Response({"success": True, "user": serialize_user(user)})
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class AuthLogoutView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        logout(request)
+        return Response({"success": True, "message": "Logged out"})
+
+
+class AuthMeView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        ensure_default_user()
+        if not request.user.is_authenticated:
+            return Response(
+                {"success": False, "authenticated": False},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        return Response(
+            {
+                "success": True,
+                "authenticated": True,
+                "user": serialize_user(request.user),
+            }
+        )
+
+
+class AuthRegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        try:
+            username = (request.data.get("username") or "").strip().lower()
+            password = request.data.get("password") or ""
+            display_name = (request.data.get("displayName") or request.data.get("name") or "").strip()
+
+            if not username or not password:
+                return Response(
+                    {"success": False, "error": "Username and password are required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if len(password) < 6:
+                return Response(
+                    {"success": False, "error": "Password must be at least 6 characters"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if User.objects.filter(username=username).exists():
+                return Response(
+                    {"success": False, "error": "Username already taken"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            user = User.objects.create_user(
+                username=username,
+                password=password,
+                first_name=display_name or username,
+            )
+            settings = get_or_create_settings()
+            if display_name:
+                settings.user_name = display_name
+                settings.save(update_fields=["user_name"])
+
+            login(request, user)
+            return Response(
+                {"success": True, "user": serialize_user(user)},
+                status=status.HTTP_201_CREATED,
+            )
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class DashboardView(APIView):
@@ -51,6 +190,10 @@ class DashboardView(APIView):
             overdue_tasks = [
                 t for t in all_tasks
                 if t.status != 'DONE' and t.due_date and t.due_date < start_of_today
+            ]
+            upcoming_tasks = [
+                t for t in all_tasks
+                if t.status != 'DONE' and t.due_date and t.due_date > end_of_today
             ]
             completed_tasks_today = [
                 t for t in all_tasks
@@ -85,6 +228,21 @@ class DashboardView(APIView):
                 }
                 for d in active_debts if d.type == 'OWED_BY_ME'
             ]
+
+            # Plan/bill expiry reminders (e.g. 28-day mobile recharge)
+            for bill in Bill.objects.filter(is_active=True):
+                status_code = bill.reminder_status
+                if status_code not in ('ABOUT_TO_EXPIRE', 'EXPIRED'):
+                    continue
+                upcoming_payments.append({
+                    "title": bill.title,
+                    "amount": float(bill.amount),
+                    "dueDate": bill.expires_on.isoformat(),
+                    "type": "BILL",
+                    "reminderStatus": status_code,
+                    "daysLeft": bill.days_left,
+                    "planDays": bill.plan_days,
+                })
 
             # Habits
             today_str = now.strftime('%Y-%m-%d')
@@ -162,6 +320,7 @@ class DashboardView(APIView):
                     "totalTasks": all_tasks.count(),
                     "dueTodayCount": len(tasks_due_today),
                     "overdueCount": len(overdue_tasks),
+                    "upcomingCount": len(upcoming_tasks),
                     "completedCount": all_tasks.filter(status='DONE').count(),
                     "taskCompletionRate": task_completion_rate,
                     "totalIncome": total_income,
@@ -174,6 +333,9 @@ class DashboardView(APIView):
                     "activeLearningCount": len(active_learning),
                 },
                 "dailyQuestions": daily_questions,
+                "habits": HabitSerializer(all_habits, many=True).data,
+                "notes": NoteSerializer(Note.objects.all()[:5], many=True).data,
+                "learningGoals": LearningGoalSerializer(learning_goals, many=True).data,
                 "settings": UserSettingsSerializer(settings).data,
                 "dbStatus": {
                     "connected": True,
@@ -295,11 +457,13 @@ class FinanceView(APIView):
             view = request.GET.get('view')
             transactions = Transaction.objects.all() if view != 'debts' else []
             debts = Debt.objects.all() if view != 'transactions' else []
+            bills = Bill.objects.all() if view not in ('transactions', 'debts') else []
 
             return Response({
                 "success": True,
                 "transactions": TransactionSerializer(transactions, many=True).data if view != 'debts' else [],
                 "debts": DebtSerializer(debts, many=True).data if view != 'transactions' else [],
+                "bills": BillSerializer(bills, many=True).data if view not in ('transactions', 'debts') else [],
             })
         except Exception as e:
             return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -336,30 +500,83 @@ class FinanceView(APIView):
                     notes=data.get('notes', ''),
                 )
                 return Response({"success": True, "item": DebtSerializer(debt).data, "itemType": "debt"}, status=status.HTTP_201_CREATED)
-            else:
-                title = data.get('title')
-                amount = data.get('amount')
-                t_type = data.get('type')
-                if not title or amount is None or not t_type:
-                    return Response({"success": False, "error": "Title, amount, and type are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-                date_val = data.get('date')
-                trans = Transaction.objects.create(
+            if item_type == 'bill':
+                title = data.get('title')
+                if not title:
+                    return Response({"success": False, "error": "Title is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+                recharge_date = data.get('rechargeDate') or data.get('recharge_date') or timezone.localdate().isoformat()
+                bill = Bill.objects.create(
                     title=title,
-                    type=t_type,
-                    amount=float(amount),
-                    category=data.get('category', 'OTHER'),
-                    date=date_val if date_val else timezone.now(),
-                    is_recurring=bool(data.get('isRecurring', data.get('is_recurring', False))),
+                    amount=float(data.get('amount') or 0),
+                    category=data.get('category', 'MOBILE'),
+                    recharge_date=recharge_date,
+                    plan_days=int(data.get('planDays') or data.get('plan_days') or 28),
+                    remind_days_before=int(data.get('remindDaysBefore') or data.get('remind_days_before') or 3),
                     notes=data.get('notes', ''),
+                    is_active=bool(data.get('isActive', data.get('is_active', True))),
                 )
-                return Response({"success": True, "item": TransactionSerializer(trans).data, "itemType": "transaction"}, status=status.HTTP_201_CREATED)
+                return Response({"success": True, "item": BillSerializer(bill).data, "bill": BillSerializer(bill).data, "itemType": "bill"}, status=status.HTTP_201_CREATED)
+
+            title = data.get('title')
+            amount = data.get('amount')
+            t_type = data.get('type')
+            if not title or amount is None or not t_type:
+                return Response({"success": False, "error": "Title, amount, and type are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+            date_val = data.get('date')
+            trans = Transaction.objects.create(
+                title=title,
+                type=t_type,
+                amount=float(amount),
+                category=data.get('category', 'OTHER'),
+                date=date_val if date_val else timezone.now(),
+                is_recurring=bool(data.get('isRecurring', data.get('is_recurring', False))),
+                notes=data.get('notes', ''),
+            )
+            return Response({"success": True, "item": TransactionSerializer(trans).data, "itemType": "transaction"}, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def patch(self, request):
         try:
             data = request.data
+            item_type = data.get('itemType')
+
+            if item_type == 'bill':
+                bill_id = data.get('billId') or data.get('id')
+                bill = Bill.objects.filter(id=bill_id).first()
+                if not bill:
+                    return Response({"success": False, "error": "Bill not found"}, status=status.HTTP_404_NOT_FOUND)
+
+                # Mark recharged today (or provided date) — restarts the plan cycle
+                if data.get('markRecharged') or data.get('mark_recharged'):
+                    recharge = data.get('rechargeDate') or data.get('recharge_date')
+                    bill.recharge_date = recharge or timezone.localdate()
+                else:
+                    if 'title' in data:
+                        bill.title = data['title']
+                    if 'amount' in data:
+                        bill.amount = float(data['amount'])
+                    if 'category' in data:
+                        bill.category = data['category']
+                    if 'rechargeDate' in data or 'recharge_date' in data:
+                        bill.recharge_date = data.get('rechargeDate') or data.get('recharge_date')
+                    if 'planDays' in data or 'plan_days' in data:
+                        bill.plan_days = int(data.get('planDays') or data.get('plan_days'))
+                    if 'remindDaysBefore' in data or 'remind_days_before' in data:
+                        bill.remind_days_before = int(
+                            data.get('remindDaysBefore') or data.get('remind_days_before')
+                        )
+                    if 'notes' in data:
+                        bill.notes = data['notes']
+                    if 'isActive' in data or 'is_active' in data:
+                        bill.is_active = bool(data.get('isActive', data.get('is_active')))
+
+                bill.save()
+                return Response({"success": True, "bill": BillSerializer(bill).data})
+
             debt_id = data.get('debtId') or data.get('id')
             repayment_amount = data.get('repaymentAmount')
             notes = data.get('notes', '')
@@ -400,6 +617,8 @@ class FinanceView(APIView):
 
             if item_type == 'debt':
                 Debt.objects.filter(id=item_id).delete()
+            elif item_type == 'bill':
+                Bill.objects.filter(id=item_id).delete()
             else:
                 Transaction.objects.filter(id=item_id).delete()
 
@@ -713,6 +932,7 @@ class SeedView(APIView):
                 Task.objects.all().delete()
                 Transaction.objects.all().delete()
                 Debt.objects.all().delete()
+                Bill.objects.all().delete()
                 Habit.objects.all().delete()
                 LearningGoal.objects.all().delete()
                 JobApplication.objects.all().delete()
@@ -724,7 +944,8 @@ class SeedView(APIView):
             tomorrow = now + timezone.timedelta(days=1)
             in_three_days = now + timezone.timedelta(days=3)
 
-            # 1. Settings
+            # 1. Auth user + settings
+            ensure_default_user()
             UserSettings.objects.update_or_create(
                 id=1,
                 defaults={

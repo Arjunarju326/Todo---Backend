@@ -84,6 +84,44 @@ class Debt(models.Model):
     def __str__(self):
         return f"{self.person_name} ({self.type}) - {self.total_amount}"
 
+
+class Bill(models.Model):
+    """Recurring plans like mobile recharge — remind before plan_days elapse."""
+    title = models.CharField(max_length=255)
+    amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    category = models.CharField(max_length=50, default='MOBILE')
+    recharge_date = models.DateField(default=timezone.localdate)
+    plan_days = models.PositiveIntegerField(default=28)
+    remind_days_before = models.PositiveIntegerField(default=3)
+    notes = models.TextField(blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['recharge_date', '-created_at']
+
+    def __str__(self):
+        return f"{self.title} ({self.plan_days}d)"
+
+    @property
+    def expires_on(self):
+        from datetime import timedelta
+        return self.recharge_date + timedelta(days=self.plan_days)
+
+    @property
+    def days_left(self):
+        return (self.expires_on - timezone.localdate()).days
+
+    @property
+    def reminder_status(self):
+        left = self.days_left
+        if left < 0:
+            return 'EXPIRED'
+        if left <= self.remind_days_before:
+            return 'ABOUT_TO_EXPIRE'
+        return 'ACTIVE'
+
 class Habit(models.Model):
     name = models.CharField(max_length=255)
     category = models.CharField(max_length=50, default='ROUTINE')
