@@ -401,12 +401,13 @@ Retrieved knowledge/context:
 
 Return ONLY valid JSON with keys:
 greeting (short spoken line, energetic but kind),
-taskNudge (specific next task/responsibility to do now),
+taskNudge (specific next task/responsibility to do now — if due_today or overdue exist, name the real task),
 methodTip (one practical method to stop forgetting work),
 newsBite (one short Python/AI or India-tech tip relevant today),
 responsibilityFocus (one line about duties they may overlook),
 avatarMood (one of: welcome, encourage, focus, celebrate)
 
+If snapshot has due_today or overdue items, taskNudge MUST mention the most urgent real title.
 No markdown. Keep each string under 220 characters."""
         try:
             model = genai.GenerativeModel(CHAT_MODEL)
