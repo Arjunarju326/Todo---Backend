@@ -1246,3 +1246,27 @@ class AssistantReindexView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+
+class AssistantCaptureView(APIView):
+    """Tell Smrti something to remember — creates a Dayflow task."""
+
+    def post(self, request):
+        try:
+            from .assistant_service import capture_message
+
+            message = (
+                request.data.get("message")
+                or request.data.get("text")
+                or request.data.get("content")
+                or ""
+            )
+            result = capture_message(message)
+            if not result.get("success"):
+                return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            return Response(result, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+

@@ -6,7 +6,7 @@ import json
 import math
 import os
 import re
-from datetime import datetime, time as dtime
+from datetime import datetime, timedelta, time as dtime
 from typing import Any
 
 from django.db import connection
@@ -445,3 +445,158 @@ No markdown. Keep each string under 220 characters."""
         brief_date=today, defaults={"payload": payload}
     )
     return payload
+
+
+def _parse_due_datetime(iso_or_local: str | None):
+    if not iso_or_local:
+        return None
+    raw = str(iso_or_local).strip()
+    try:
+        # Accept "2026-11-20T16:30:00" or date-only
+        if len(raw) == 10 and raw[4] == "-":
+            dt = datetime.strptime(raw, "%Y-%m-%d")
+            dt = timezone.make_aware(datetime.combine(dt.date(), dtime(9, 0)))
+            return dt
+        cleaned = raw.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(cleaned)
+        if timezone.is_naive(dt):
+            dt = timezone.make_aware(dt)
+        return dt
+    except Exception:
+        return None
+
+
+def _heuristic_capture(message: str) -> dict[str, Any]:
+    """Offline fallback when Gemini is unavailable."""
+    lower = message.lower()
+    now = timezone.localtime()
+    due = None
+    title = message.strip()
+    if "tomorrow" in lower or "tomarow" in lower or "tommorow" in lower:
+        due_day = now.date() + timedelta(days=1)
+        # time like 4.30 / 4:30 / 16:30
+        m = re.search(r"(\d{1,2})[:.](\d{2})\s*(am|pm)?", lower)
+        hour, minute = 9, 0
+        if m:
+            hour = int(m.group(1))
+            minute = int(m.group(2))
+            ampm = m.group(3)
+            if ampm == "pm" and hour < 12:
+                hour += 12
+            if ampm == "am" and hour == 12:
+                hour = 0
+            elif not ampm and hour <= 7:
+                # bare afternoon times like 4.30 → 16:30
+                hour += 12
+        due = timezone.make_aware(datetime.combine(due_day, dtime(hour, minute)))
+        title = re.sub(
+            r"\b(i have a|i have|need to|remind me|remember|tomorrow|tomarow|tommorow|at\s+\d{1,2}[:.]\d{2}\s*(am|pm)?)\b",
+            "",
+            message,
+            flags=re.I,
+        ).strip(" .,!")
+        if not title or len(title) < 3:
+            title = "Meeting"
+        if "meeting" in lower and "meeting" not in title.lower():
+            title = f"Meeting — {title}" if title.lower() != "meeting" else "Meeting"
+    return {
+        "action": "create_task",
+        "title": title[:255] or "New reminder",
+        "description": f"Captured by Smrti from: {message}",
+        "category": "WORK" if any(w in lower for w in ("meeting", "call", "client", "office")) else "PERSONAL",
+        "priority": "HIGH" if any(w in lower for w in ("meeting", "urgent", "important")) else "MEDIUM",
+        "dueDate": due.isoformat() if due else None,
+        "reply": "Got it — I saved this so you won’t forget.",
+    }
+
+
+def capture_message(message: str) -> dict[str, Any]:
+    """Parse natural language into a Dayflow task and create it."""
+    message = (message or "").strip()
+    if not message:
+        return {"success": False, "error": "Message is required"}
+
+    profile = get_profile()
+    now = timezone.localtime()
+    parsed = None
+    genai = _configure_gemini()
+    if genai:
+        prompt = f"""You are {ASSISTANT_NAME}, a memory assistant for Dayflow.
+User lives in {profile['location']} (timezone Asia/Kolkata).
+Current local datetime: {now.isoformat()}
+
+User said: {message!r}
+
+Extract a task to create. Return ONLY JSON:
+{{
+  "action": "create_task",
+  "title": "short clear task title",
+  "description": "optional detail",
+  "category": "WORK|PERSONAL|FINANCE|LEARNING",
+  "priority": "HIGH|MEDIUM|LOW",
+  "dueDate": "ISO datetime Asia/Kolkata naive like 2026-11-20T16:30:00 or null",
+  "reply": "short confirmation spoken as Smrti"
+}}
+
+If they mention tomorrow and a time (e.g. 4.30 / 4:30), set dueDate to tomorrow at that time (use 24h; 4:30 alone means 16:30).
+"""
+        try:
+            model = genai.GenerativeModel(CHAT_MODEL)
+            resp = model.generate_content(prompt, request_options={"timeout": 45})
+            text = getattr(resp, "text", None) or ""
+            parsed = _parse_json_loose(text)
+        except Exception:
+            parsed = None
+
+    if not parsed:
+        parsed = _heuristic_capture(message)
+
+    title = (parsed.get("title") or "New reminder").strip()[:255]
+    description = (parsed.get("description") or f"Captured by Smrti: {message}").strip()
+    category = parsed.get("category") or "PERSONAL"
+    if category not in ("WORK", "PERSONAL", "FINANCE", "LEARNING"):
+        category = "PERSONAL"
+    priority = parsed.get("priority") or "MEDIUM"
+    if priority not in ("HIGH", "MEDIUM", "LOW"):
+        priority = "MEDIUM"
+    due = _parse_due_datetime(parsed.get("dueDate") or parsed.get("due_date"))
+    reply = parsed.get("reply") or f"Saved “{title}” — I’ll help you remember it."
+
+    task = Task.objects.create(
+        title=title,
+        description=description,
+        category=category,
+        priority=priority,
+        status=TaskStatus.TODO,
+        due_date=due,
+        is_important=priority == "HIGH",
+        tags=["smrti"],
+    )
+
+    # Index for RAG without blocking on embeddings
+    try:
+        text = (
+            f"Pending task: {task.title}. Category {task.category}. Priority {task.priority}. "
+            f"Due {task.due_date.isoformat() if task.due_date else 'no due date'}. {task.description}"
+        )
+        _upsert_chunk(
+            AssistantSourceType.TASK,
+            str(task.id),
+            task.title,
+            text,
+            [],
+            {"priority": task.priority, "from": "smrti"},
+        )
+        # Invalidate today's brief cache so popup refreshes
+        AssistantBrief.objects.filter(brief_date=timezone.localdate()).delete()
+    except Exception:
+        pass
+
+    from .serializers import TaskSerializer
+
+    return {
+        "success": True,
+        "reply": reply,
+        "task": TaskSerializer(task).data,
+        "assistant": ASSISTANT_NAME,
+    }
