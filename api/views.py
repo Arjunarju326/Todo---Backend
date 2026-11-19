@@ -1201,3 +1201,48 @@ class SeedView(APIView):
         except Exception as e:
             return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+class AssistantBriefingView(APIView):
+    """Daily Smrti popup / sidebar briefing (no chat)."""
+
+    def get(self, request):
+        try:
+            force = str(request.GET.get("refresh", "")).lower() in ("1", "true", "yes")
+            from .assistant_service import generate_briefing, ASSISTANT_NAME
+
+            briefing = generate_briefing(force_refresh=force)
+            return Response(
+                {
+                    "success": True,
+                    "assistant": ASSISTANT_NAME,
+                    "briefing": briefing,
+                }
+            )
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class AssistantReindexView(APIView):
+    """Rebuild Smrti RAG index from tasks, habits, learning, notes, knowledge."""
+
+    def post(self, request):
+        try:
+            from .assistant_service import index_workspace, ASSISTANT_NAME
+
+            counts = index_workspace(force_embed=True)
+            return Response(
+                {
+                    "success": True,
+                    "assistant": ASSISTANT_NAME,
+                    "indexed": counts,
+                }
+            )
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+

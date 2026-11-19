@@ -3,6 +3,7 @@ from .views import (
     DashboardView, TasksView, FinanceView, GrowthView,
     HabitsView, NotesView, SettingsView, SeedView,
     AuthLoginView, AuthLogoutView, AuthMeView, AuthRegisterView,
+    AssistantBriefingView, AssistantReindexView,
 )
 
 urlpatterns = [
@@ -30,5 +31,9 @@ urlpatterns = [
     path('settings/', SettingsView.as_view(), name='settings_slash'),
     path('seed', SeedView.as_view(), name='seed'),
     path('seed/', SeedView.as_view(), name='seed_slash'),
+    path('assistant/briefing', AssistantBriefingView.as_view(), name='assistant_briefing'),
+    path('assistant/briefing/', AssistantBriefingView.as_view(), name='assistant_briefing_slash'),
+    path('assistant/reindex', AssistantReindexView.as_view(), name='assistant_reindex'),
+    path('assistant/reindex/', AssistantReindexView.as_view(), name='assistant_reindex_slash'),
 ]
 

@@ -209,3 +209,47 @@ class UserSettings(models.Model):
     def __str__(self):
         return f"Settings for {self.user_name}"
 
+
+class AssistantSourceType(models.TextChoices):
+    TASK = 'TASK', 'Task'
+    HABIT = 'HABIT', 'Habit'
+    LEARNING = 'LEARNING', 'Learning'
+    NOTE = 'NOTE', 'Note'
+    KNOWLEDGE = 'KNOWLEDGE', 'Knowledge'
+    PROFILE = 'PROFILE', 'Profile'
+
+
+class AssistantChunk(models.Model):
+    """RAG chunk with optional pgvector embedding (768 dims for text-embedding-004)."""
+
+    source_type = models.CharField(max_length=20, choices=AssistantSourceType.choices)
+    source_id = models.CharField(max_length=64, blank=True, default='')
+    title = models.CharField(max_length=255, blank=True, default='')
+    content = models.TextField()
+    # Stored as JSON list[float] for portability; pgvector used in raw SQL when available
+    embedding = models.JSONField(default=list, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['source_type', 'source_id']),
+        ]
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"{self.source_type}:{self.title or self.source_id}"
+
+
+class AssistantBrief(models.Model):
+    """Cached daily briefing for Smrti popup."""
+
+    brief_date = models.DateField(unique=True)
+    payload = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Smrti brief {self.brief_date}"
+
