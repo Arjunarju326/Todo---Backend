@@ -1,0 +1,1629 @@
+{
+  "suite": "niva-intel-lab-100",
+  "version": "1.0",
+  "name": "Niva Intelligence Lab 100",
+  "scenarios": [
+    {
+      "id": "A01",
+      "category": "intent",
+      "title": "A01",
+      "input": "add a task to finish Jenkins setup",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "task.create",
+        "tools": [
+          "task_create"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A02",
+      "category": "intent",
+      "title": "A02",
+      "input": "create a new task for grocery shopping",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "task.create",
+        "tools": [
+          "task_create"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A03",
+      "category": "intent",
+      "title": "A03",
+      "input": "remind me to call mom tomorrow",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "task.create",
+        "tools": [
+          "task_create"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A04",
+      "category": "intent",
+      "title": "A04",
+      "input": "what are my tasks today",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "task.list",
+        "tools": [
+          "task_list"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A05",
+      "category": "intent",
+      "title": "A05",
+      "input": "show overdue tasks",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "task.list",
+        "tools": [
+          "task_list"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A06",
+      "category": "intent",
+      "title": "A06",
+      "input": "mark the jenkins task done",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "task.complete",
+        "tools": [
+          "task_complete"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A07",
+      "category": "intent",
+      "title": "A07",
+      "input": "plan my day",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "day.plan"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A08",
+      "category": "intent",
+      "title": "A08",
+      "input": "I only have 30 minutes",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "day.plan"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A09",
+      "category": "intent",
+      "title": "A09",
+      "input": "review my day",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "day.review"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A10",
+      "category": "intent",
+      "title": "A10",
+      "input": "I want to learn RAG properly",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "learning.plan",
+        "tools": [
+          "learning_create_plan"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A11",
+      "category": "intent",
+      "title": "A11",
+      "input": "give me a quiz on transformers",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "learning.practice",
+        "tools": [
+          "learning_generate_practice"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A12",
+      "category": "intent",
+      "title": "A12",
+      "input": "what is my learning progress",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "learning.progress",
+        "tools": [
+          "learning_get_progress"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A13",
+      "category": "intent",
+      "title": "A13",
+      "input": "explain attention mechanism",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "learning.explain",
+        "tools": []
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A14",
+      "category": "intent",
+      "title": "A14",
+      "input": "latest tech news",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "research.news",
+        "tools": [
+          "news_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A15",
+      "category": "intent",
+      "title": "A15",
+      "input": "search online for Django 5 release",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "research.web",
+        "tools": [
+          "web_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A16",
+      "category": "intent",
+      "title": "A16",
+      "input": "remember this: I prefer short replies",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "memory.save",
+        "tools": [
+          "memory_save"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A17",
+      "category": "intent",
+      "title": "A17",
+      "input": "do you remember where I work",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "memory.recall",
+        "tools": [
+          "memory_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A18",
+      "category": "intent",
+      "title": "A18",
+      "input": "who am i",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "profile.identity",
+        "tools": []
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A19",
+      "category": "intent",
+      "title": "A19",
+      "input": "what can you do",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "system.help",
+        "tools": []
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "A20",
+      "category": "intent",
+      "title": "A20",
+      "input": "my habits",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "habit.query",
+        "tools": [
+          "habit_get_today"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B01",
+      "category": "memory",
+      "title": "B01",
+      "input": "remember this: my preferred name is Arjuoo",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "memory.save",
+        "tools": [
+          "memory_save"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B02",
+      "category": "memory",
+      "title": "B02",
+      "input": "keep this in mind I work at IBM",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "memory.save",
+        "tools": [
+          "memory_save"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B03",
+      "category": "memory",
+      "title": "B03",
+      "input": "don't forget I live in Kochi",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "memory.save",
+        "tools": [
+          "memory_save"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B04",
+      "category": "memory",
+      "title": "B04",
+      "input": "ormikkane call me Arjun",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "memory.save",
+        "tools": [
+          "memory_save"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B05",
+      "category": "memory",
+      "title": "B05",
+      "input": "save this in memory: quiet hours after 10pm",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "memory.save",
+        "tools": [
+          "memory_save"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B06",
+      "category": "memory",
+      "title": "B06",
+      "input": "forget that about my old nickname",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "memory.forget",
+        "tools": [
+          "memory_archive"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B07",
+      "category": "memory",
+      "title": "B07",
+      "input": "delete memory of temporary internship",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "memory.forget",
+        "tools": [
+          "memory_archive"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B08",
+      "category": "memory",
+      "title": "B08",
+      "input": "what did I tell you about work",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "memory.recall",
+        "tools": [
+          "memory_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B09",
+      "category": "memory",
+      "title": "B09",
+      "input": "where do I live",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "memory.recall",
+        "tools": [
+          "memory_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B10",
+      "category": "memory",
+      "title": "B10",
+      "input": "who am i?",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "max_sentences": 3,
+        "forbid_substrings": [
+          "AssistantMemory",
+          "episodic dump",
+          "memory bank"
+        ],
+        "memory_hygiene": true,
+        "forbid_critical": true,
+        "intent": "profile.identity",
+        "tools": []
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B11",
+      "category": "memory",
+      "title": "B11",
+      "input": "who i am",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "max_sentences": 3,
+        "memory_hygiene": true,
+        "intent": "profile.identity",
+        "tools": []
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B12",
+      "category": "memory",
+      "title": "B12",
+      "input": "what's my preferred name",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "memory.recall",
+        "tools": [
+          "memory_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B13",
+      "category": "memory",
+      "title": "B13",
+      "input": "do you remember my goals",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "memory.recall",
+        "tools": [
+          "memory_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B14",
+      "category": "memory",
+      "title": "B14",
+      "input": "what do you know about me",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "memory.recall",
+        "tools": [
+          "memory_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B15",
+      "category": "memory",
+      "title": "B15",
+      "input": "remember that RAG project is my active goal",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "memory.save",
+        "tools": [
+          "memory_save"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B16",
+      "category": "memory",
+      "title": "B16",
+      "input": "keep in mind I hate long motivational speeches",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "memory.save",
+        "tools": [
+          "memory_save"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B17",
+      "category": "memory",
+      "title": "B17",
+      "input": "forget this temporary note xyz",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "memory.forget",
+        "tools": [
+          "memory_archive"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B18",
+      "category": "memory",
+      "title": "B18",
+      "input": "hello",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "expect_no_mutation": true,
+        "intent": "chat.general",
+        "tools": []
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B19",
+      "category": "memory",
+      "title": "B19",
+      "input": "thanks",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "expect_no_mutation": true,
+        "intent": "chat.general",
+        "tools": []
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "B20",
+      "category": "memory",
+      "title": "B20",
+      "input": "njan aaranu",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "memory_hygiene": true,
+        "intent": "profile.identity",
+        "tools": []
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C01",
+      "category": "tools",
+      "title": "C01",
+      "input": "add a task to write unit tests",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": true,
+        "critical_intent": true,
+        "intent": "task.create",
+        "tools": [
+          "task_create"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C02",
+      "category": "tools",
+      "title": "C02",
+      "input": "create task: review PR #42",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": true,
+        "critical_intent": true,
+        "intent": "task.create",
+        "tools": [
+          "task_create"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C03",
+      "category": "tools",
+      "title": "C03",
+      "input": "new task prepare slides",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": true,
+        "critical_intent": true,
+        "intent": "task.create",
+        "tools": [
+          "task_create"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C04",
+      "category": "tools",
+      "title": "C04",
+      "input": "make a task for dentist appointment",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": true,
+        "critical_intent": true,
+        "intent": "task.create",
+        "tools": [
+          "task_create"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C05",
+      "category": "tools",
+      "title": "C05",
+      "input": "list my tasks",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": true,
+        "critical_intent": true,
+        "intent": "task.list",
+        "tools": [
+          "task_list"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C06",
+      "category": "tools",
+      "title": "C06",
+      "input": "any tasks due today",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": true,
+        "critical_intent": true,
+        "intent": "task.list",
+        "tools": [
+          "task_list"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C07",
+      "category": "tools",
+      "title": "C07",
+      "input": "task list please",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": true,
+        "critical_intent": true,
+        "intent": "task.list",
+        "tools": [
+          "task_list"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C08",
+      "category": "tools",
+      "title": "C08",
+      "input": "finish the task about slides",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": true,
+        "critical_intent": true,
+        "intent": "task.complete",
+        "tools": [
+          "task_complete"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C09",
+      "category": "tools",
+      "title": "C09",
+      "input": "mark grocery task completed",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": true,
+        "critical_intent": true,
+        "intent": "task.complete",
+        "tools": [
+          "task_complete"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C10",
+      "category": "tools",
+      "title": "C10",
+      "input": "my goals",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": false,
+        "critical_intent": true,
+        "intent": "goal.progress",
+        "tools": [
+          "goal_get_active"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C11",
+      "category": "tools",
+      "title": "C11",
+      "input": "goal progress",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": false,
+        "critical_intent": true,
+        "intent": "goal.progress",
+        "tools": [
+          "goal_get_active"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C12",
+      "category": "tools",
+      "title": "C12",
+      "input": "habit streak",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": false,
+        "critical_intent": true,
+        "intent": "habit.query",
+        "tools": [
+          "habit_get_today"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C13",
+      "category": "tools",
+      "title": "C13",
+      "input": "did I complete my habit",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": false,
+        "critical_intent": true,
+        "intent": "habit.query",
+        "tools": [
+          "habit_get_today"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C14",
+      "category": "tools",
+      "title": "C14",
+      "input": "add tasks for laundry and bills",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": true,
+        "critical_intent": true,
+        "intent": "task.create",
+        "tools": [
+          "task_create"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C15",
+      "category": "tools",
+      "title": "C15",
+      "input": "remind me to stretch at 5pm",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": true,
+        "critical_intent": true,
+        "intent": "task.create",
+        "tools": [
+          "task_create"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C16",
+      "category": "tools",
+      "title": "C16",
+      "input": "what should I have to do",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": false,
+        "critical_intent": true,
+        "intent": "task.list",
+        "tools": [
+          "task_list"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C17",
+      "category": "tools",
+      "title": "C17",
+      "input": "overdue",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": false,
+        "critical_intent": true,
+        "intent": "task.list",
+        "tools": [
+          "task_list"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C18",
+      "category": "tools",
+      "title": "C18",
+      "input": "mark finished the learning task",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": true,
+        "critical_intent": true,
+        "intent": "task.complete",
+        "tools": [
+          "task_complete"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C19",
+      "category": "tools",
+      "title": "C19",
+      "input": "create a task titled backlog cleanup",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": true,
+        "critical_intent": true,
+        "intent": "task.create",
+        "tools": [
+          "task_create"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "C20",
+      "category": "tools",
+      "title": "C20",
+      "input": "show my open tasks",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_tools": false,
+        "critical_intent": true,
+        "intent": "task.list",
+        "tools": [
+          "task_list"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D01",
+      "category": "planning",
+      "title": "D01",
+      "input": "plan my day",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "day.plan"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D02",
+      "category": "planning",
+      "title": "D02",
+      "input": "schedule my day",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "day.plan"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D03",
+      "category": "planning",
+      "title": "D03",
+      "input": "what should I focus on today",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "day.plan"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D04",
+      "category": "planning",
+      "title": "D04",
+      "input": "what should I do now",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "recommendation"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D05",
+      "category": "planning",
+      "title": "D05",
+      "input": "I only have 15 minutes",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "day.plan"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D06",
+      "category": "planning",
+      "title": "D06",
+      "input": "I only have 2 hours",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "day.plan"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D07",
+      "category": "planning",
+      "title": "D07",
+      "input": "plan my week",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "day.plan"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D08",
+      "category": "planning",
+      "title": "D08",
+      "input": "evening review",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "day.review"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D09",
+      "category": "planning",
+      "title": "D09",
+      "input": "how did my day go",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "day.review"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D10",
+      "category": "planning",
+      "title": "D10",
+      "input": "how did I do today",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "day.review"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D11",
+      "category": "planning",
+      "title": "D11",
+      "input": "recommend something productive",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "recommendation"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D12",
+      "category": "planning",
+      "title": "D12",
+      "input": "suggest what to focus on",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "recommendation"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D13",
+      "category": "planning",
+      "title": "D13",
+      "input": "hi niva",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "expect_no_mutation": true,
+        "intent": "chat.general",
+        "tools": []
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D14",
+      "category": "planning",
+      "title": "D14",
+      "input": "just chatting, no tasks please",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "expect_no_mutation": true,
+        "intent": "chat.general",
+        "tools": []
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "D15",
+      "category": "planning",
+      "title": "D15",
+      "input": "good morning",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "expect_no_mutation": true,
+        "intent": "chat.general",
+        "tools": []
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "E01",
+      "category": "learning",
+      "title": "E01",
+      "input": "I want to learn system design",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "learning.plan",
+        "tools": [
+          "learning_create_plan"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "E02",
+      "category": "learning",
+      "title": "E02",
+      "input": "learning roadmap for python",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "learning.plan",
+        "tools": [
+          "learning_create_plan"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "E03",
+      "category": "learning",
+      "title": "E03",
+      "input": "teach me a path for ML interview",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "learning.plan",
+        "tools": [
+          "learning_create_plan"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "E04",
+      "category": "learning",
+      "title": "E04",
+      "input": "practice question on RAG",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "learning.practice",
+        "tools": [
+          "learning_generate_practice"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "E05",
+      "category": "learning",
+      "title": "E05",
+      "input": "test me on embeddings",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "learning.practice",
+        "tools": [
+          "learning_generate_practice"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "E06",
+      "category": "learning",
+      "title": "E06",
+      "input": "give me a quiz",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "learning.practice",
+        "tools": [
+          "learning_generate_practice"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "E07",
+      "category": "learning",
+      "title": "E07",
+      "input": "my skills",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "learning.progress",
+        "tools": [
+          "learning_get_progress"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "E08",
+      "category": "learning",
+      "title": "E08",
+      "input": "what have I learned",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "learning.progress",
+        "tools": [
+          "learning_get_progress"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "E09",
+      "category": "learning",
+      "title": "E09",
+      "input": "learning progress",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "learning.progress",
+        "tools": [
+          "learning_get_progress"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "E10",
+      "category": "learning",
+      "title": "E10",
+      "input": "how does vector search work",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "learning.explain",
+        "tools": []
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "F01",
+      "category": "research",
+      "title": "F01",
+      "input": "tech news",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "research.news",
+        "tools": [
+          "news_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "F02",
+      "category": "research",
+      "title": "F02",
+      "input": "today's news",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "research.news",
+        "tools": [
+          "news_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "F03",
+      "category": "research",
+      "title": "F03",
+      "input": "breaking news in AI",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "research.news",
+        "tools": [
+          "news_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "F04",
+      "category": "research",
+      "title": "F04",
+      "input": "google the latest Next.js version",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "research.web",
+        "tools": [
+          "web_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "F05",
+      "category": "research",
+      "title": "F05",
+      "input": "look up Tavily API pricing",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "research.web",
+        "tools": [
+          "web_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "F06",
+      "category": "research",
+      "title": "F06",
+      "input": "search the web for pgvector tips",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "research.web",
+        "tools": [
+          "web_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "F07",
+      "category": "research",
+      "title": "F07",
+      "input": "check online for Gemini rate limits",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "research.web",
+        "tools": [
+          "web_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "F08",
+      "category": "research",
+      "title": "F08",
+      "input": "who am i",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "forbid_search_tools": true,
+        "intent": "profile.identity",
+        "tools": [],
+        "tools_exclude": [
+          "web_search",
+          "news_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "F09",
+      "category": "research",
+      "title": "F09",
+      "input": "what are my tasks",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "forbid_search_tools": true,
+        "intent": "task.list",
+        "tools": [
+          "task_list"
+        ],
+        "tools_exclude": [
+          "web_search",
+          "news_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "F10",
+      "category": "research",
+      "title": "F10",
+      "input": "headlines",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "research.news",
+        "tools": [
+          "news_search"
+        ]
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "G01",
+      "category": "conversation",
+      "title": "G01",
+      "input": "who am i?",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "max_sentences": 3,
+        "memory_hygiene": true,
+        "forbid_substrings": [
+          "JSON",
+          "dump"
+        ],
+        "intent": "profile.identity"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "G02",
+      "category": "conversation",
+      "title": "G02",
+      "input": "yes",
+      "history": [
+        {
+          "role": "assistant",
+          "content": "Want help on how to do that Jenkins task?"
+        },
+        {
+          "role": "user",
+          "content": "yes"
+        }
+      ],
+      "fixtures": {},
+      "expect": {
+        "intent": "learning.explain"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "G03",
+      "category": "conversation",
+      "title": "G03",
+      "input": "ok help me",
+      "history": [
+        {
+          "role": "assistant",
+          "content": "Want help on how to do that?"
+        }
+      ],
+      "fixtures": {},
+      "expect": {
+        "intent": "learning.explain"
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "G04",
+      "category": "conversation",
+      "title": "G04",
+      "input": "hello there",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "expect_no_mutation": true,
+        "intent": "chat.general",
+        "tools": []
+      },
+      "weight": 1.0,
+      "tags": []
+    },
+    {
+      "id": "G05",
+      "category": "conversation",
+      "title": "G05",
+      "input": "what should I focus on now",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "intent": "recommendation"
+      },
+      "weight": 1.0,
+      "tags": []
+    }
+  ]
+}

@@ -47,7 +47,7 @@ INSTALLED_APPS = [
     'rest_framework',
     
     # Local apps
-    'api',
+    'api.apps.ApiConfig',
 ]
 
 MIDDLEWARE = [
@@ -154,6 +154,11 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
     ],
+    'DEFAULT_THROTTLE_RATES': {
+        'user': '180/min',
+        'niva_chat': '40/min',
+        'niva_search': '25/min',
+    },
 }
 
 # Google Cloud Storage Configuration
@@ -161,4 +166,39 @@ GS_PROJECT_ID = clean_env('GS_PROJECT_ID', 'magnusforum-452015')
 GS_BUCKET_NAME = clean_env('GS_BUCKET_NAME', 'magnus-placement-test')
 GOOGLE_STORAGE_JSON_NAME = clean_env('GOOGLE_STORAGE_JSON_NAME', 'credential.json')
 CURRENT_PLATFORM = clean_env('CURRENT_PLATFORM', 'DEV')
+
+# Celery (optional — Niva proactive jobs). Falls back to `manage.py niva_proactive`.
+CELERY_BROKER_URL = clean_env('CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
+CELERY_RESULT_BACKEND = clean_env('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_BEAT_SCHEDULE = {
+    'niva-morning-briefings': {
+        'task': 'niva.morning_briefings',
+        'schedule': 900.0,  # every 15 minutes; task self-filters by user time
+    },
+    'niva-evening-reviews': {
+        'task': 'niva.evening_reviews',
+        'schedule': 900.0,
+    },
+    'niva-consolidate-memories': {
+        'task': 'niva.consolidate_memories',
+        'schedule': 86400.0,  # daily
+    },
+    'niva-activity-digests': {
+        'task': 'niva.activity_digests',
+        'schedule': 86400.0,  # daily — yesterday's activity → one digest line
+    },
+    'niva-weekly-reviews': {
+        'task': 'niva.weekly_reviews',
+        'schedule': 3600.0,  # hourly; task self-filters by weekday + once/day
+    },
+    'niva-overdue-nudges': {
+        'task': 'niva.overdue_nudges',
+        'schedule': 3600.0,  # at most one overdue nudge per user per day
+    },
+    'niva-spend-alerts': {
+        'task': 'niva.spend_alerts',
+        'schedule': 3600.0,  # only when finance rules fire; once/day max
+    },
+}
 

@@ -1,0 +1,81 @@
+{
+  "suite": "niva-manglish-smoke",
+  "version": "1.0",
+  "name": "Niva Manglish smoke (Phase 11)",
+  "scenarios": [
+    {
+      "id": "M01",
+      "category": "manglish",
+      "title": "Today tasks Manglish",
+      "input": "innu enthokke task und?",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "task.list",
+        "tools": ["task_list"]
+      },
+      "weight": 1.0,
+      "tags": ["manglish", "phase11"]
+    },
+    {
+      "id": "M02",
+      "category": "manglish",
+      "title": "Yesterday activity",
+      "input": "innale njan enthokke cheythu?",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "activity.recall",
+        "tools": ["get_activity"]
+      },
+      "weight": 1.0,
+      "tags": ["manglish", "phase11"]
+    },
+    {
+      "id": "M03",
+      "category": "manglish",
+      "title": "Month spending",
+      "input": "ee maasam ethra chilavayi?",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "finance.summary",
+        "tools": ["spending_summary"]
+      },
+      "weight": 1.0,
+      "tags": ["manglish", "phase11"]
+    },
+    {
+      "id": "M04",
+      "category": "manglish",
+      "title": "Tomorrow need to do",
+      "input": "nale enthu cheyyanam?",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": false,
+        "intent_any": ["task.list", "day.plan", "recommendation", "chat.general"]
+      },
+      "weight": 1.0,
+      "tags": ["manglish", "phase11"]
+    },
+    {
+      "id": "M05",
+      "category": "manglish",
+      "title": "Week spending vibe",
+      "input": "ente chilavu ee aazhcha engane und?",
+      "history": [],
+      "fixtures": {},
+      "expect": {
+        "critical_intent": true,
+        "intent": "finance.summary",
+        "tools": ["spending_summary"]
+      },
+      "weight": 1.0,
+      "tags": ["manglish", "phase11"]
+    }
+  ]
+}

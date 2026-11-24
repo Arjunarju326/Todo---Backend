@@ -22,22 +22,31 @@ from .serializers import (
 from core.settings import DB_HOST, DB_NAME
 
 DEFAULT_USERNAME = "arjun"
-DEFAULT_PASSWORD = "dayflow123"
+DEFAULT_PASSWORD = "arjuoo"
 DEFAULT_DISPLAY_NAME = "Arjun"
 
 
-def get_or_create_settings():
-    settings = UserSettings.objects.first()
-    if not settings:
-        settings = UserSettings.objects.create(
-            user_name=DEFAULT_DISPLAY_NAME,
-            monthly_income=0,
-            monthly_emi_commitment=0,
-            savings_target=0,
-            currency="₹",
-            timezone="Asia/Kolkata"
+def get_or_create_settings(user=None):
+    """Per-user settings. Pass request.user for isolation."""
+    if user is not None and getattr(user, "is_authenticated", False):
+        settings, _ = UserSettings.objects.get_or_create(
+            user=user,
+            defaults={
+                "user_name": user.first_name or user.username or DEFAULT_DISPLAY_NAME,
+                "monthly_income": 0,
+                "monthly_emi_commitment": 0,
+                "savings_target": 0,
+                "currency": "₹",
+                "timezone": "Asia/Kolkata",
+            },
         )
-    return settings
+        return settings
+    # Fallback only for bootstrapping before login
+    settings = UserSettings.objects.filter(user__username=DEFAULT_USERNAME).first()
+    if settings:
+        return settings
+    owner = ensure_default_user()
+    return get_or_create_settings(owner)
 
 
 def ensure_default_user():
@@ -46,25 +55,57 @@ def ensure_default_user():
         defaults={
             "email": "arjun@dayflow.app",
             "first_name": DEFAULT_DISPLAY_NAME,
-            "is_staff": False,
-            "is_superuser": False,
+            "is_staff": True,
+            "is_superuser": True,
+            "is_active": True,
         },
     )
-    if created:
+    # Keep Arjun superadmin credentials in sync for the primary owner account
+    changed = False
+    if created or not user.has_usable_password():
         user.set_password(DEFAULT_PASSWORD)
+        changed = True
+    if not user.is_superuser or not user.is_staff or not user.is_active:
+        user.is_superuser = True
+        user.is_staff = True
+        user.is_active = True
+        changed = True
+    if (user.first_name or "") != DEFAULT_DISPLAY_NAME:
+        user.first_name = DEFAULT_DISPLAY_NAME
+        changed = True
+    if changed:
         user.save()
     return user
 
 
+SUPERADMIN_USERNAMES = frozenset({DEFAULT_USERNAME, "arju"})
+
+
+def is_super_admin(user) -> bool:
+    """Only Arjun (owner accounts) may see DB diagnostics."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    uname = (getattr(user, "username", "") or "").lower()
+    if uname in SUPERADMIN_USERNAMES:
+        return True
+    return bool(getattr(user, "is_superuser", False) and uname in SUPERADMIN_USERNAMES)
+
+
 def serialize_user(user):
-    settings = get_or_create_settings()
+    settings = get_or_create_settings(user)
     return {
         "id": user.id,
         "username": user.username,
         "email": user.email or "",
         "displayName": settings.user_name or user.first_name or user.username,
         "currency": settings.currency or "₹",
+        "isStaff": bool(getattr(user, "is_staff", False) or getattr(user, "is_superuser", False)),
+        "isSuperAdmin": is_super_admin(user),
     }
+
+
+def for_user(model, user):
+    return model.objects.filter(user=user)
 
 
 class AuthLoginView(APIView):
@@ -73,7 +114,7 @@ class AuthLoginView(APIView):
     def post(self, request):
         try:
             ensure_default_user()
-            username = (request.data.get("username") or "").strip()
+            username = (request.data.get("username") or "").strip().lower()
             password = request.data.get("password") or ""
             if not username or not password:
                 return Response(
@@ -154,7 +195,7 @@ class AuthRegisterView(APIView):
                 password=password,
                 first_name=display_name or username,
             )
-            settings = get_or_create_settings()
+            settings = get_or_create_settings(user)
             if display_name:
                 settings.user_name = display_name
                 settings.save(update_fields=["user_name"])
@@ -174,26 +215,30 @@ class AuthRegisterView(APIView):
 class DashboardView(APIView):
     def get(self, request):
         try:
-            now = timezone.now()
+            # Use localtime so "today" matches Tasks UI (IST), not UTC midnight
+            now = timezone.localtime()
             start_of_today = timezone.make_aware(datetime.combine(now.date(), dtime.min))
             end_of_today = timezone.make_aware(datetime.combine(now.date(), dtime.max))
             start_of_month = timezone.make_aware(datetime(now.year, now.month, 1))
 
-            settings = get_or_create_settings()
+            user = request.user
+            settings = get_or_create_settings(user)
 
-            # Tasks
-            all_tasks = Task.objects.all()
+            # Tasks — undated open tasks count as "today" (same as TasksView)
+            all_tasks = for_user(Task, user)
+            open_tasks = [t for t in all_tasks if t.status != 'DONE']
             tasks_due_today = [
-                t for t in all_tasks
-                if t.status != 'DONE' and t.due_date and start_of_today <= t.due_date <= end_of_today
+                t for t in open_tasks
+                if (t.due_date is None)
+                or (start_of_today <= t.due_date <= end_of_today)
             ]
             overdue_tasks = [
-                t for t in all_tasks
-                if t.status != 'DONE' and t.due_date and t.due_date < start_of_today
+                t for t in open_tasks
+                if t.due_date and t.due_date < start_of_today
             ]
             upcoming_tasks = [
-                t for t in all_tasks
-                if t.status != 'DONE' and t.due_date and t.due_date > end_of_today
+                t for t in open_tasks
+                if t.due_date and t.due_date > end_of_today
             ]
             completed_tasks_today = [
                 t for t in all_tasks
@@ -209,13 +254,13 @@ class DashboardView(APIView):
                 task_completion_rate = 100
 
             # Transactions (This Month)
-            month_transactions = Transaction.objects.filter(date__gte=start_of_month)
+            month_transactions = for_user(Transaction, user).filter(date__gte=start_of_month)
             total_income = float(month_transactions.filter(type='INCOME').aggregate(Sum('amount'))['amount__sum'] or 0)
             total_expense = float(month_transactions.filter(type='EXPENSE').aggregate(Sum('amount'))['amount__sum'] or 0)
             net_balance = total_income - total_expense
 
             # Debts
-            active_debts = Debt.objects.exclude(status='SETTLED')
+            active_debts = for_user(Debt, user).exclude(status='SETTLED')
             money_i_owe = sum(float(d.total_amount - d.paid_amount) for d in active_debts if d.type == 'OWED_BY_ME')
             money_owed_to_me = sum(float(d.total_amount - d.paid_amount) for d in active_debts if d.type == 'OWED_TO_ME')
 
@@ -230,7 +275,7 @@ class DashboardView(APIView):
             ]
 
             # Plan/bill expiry reminders (e.g. 28-day mobile recharge)
-            for bill in Bill.objects.filter(is_active=True):
+            for bill in for_user(Bill, user).filter(is_active=True):
                 status_code = bill.reminder_status
                 if status_code not in ('ABOUT_TO_EXPIRE', 'EXPIRED'):
                     continue
@@ -246,11 +291,11 @@ class DashboardView(APIView):
 
             # Habits
             today_str = now.strftime('%Y-%m-%d')
-            all_habits = Habit.objects.all()
+            all_habits = for_user(Habit, user)
             habits_completed_today = sum(1 for h in all_habits if today_str in (h.completed_dates or []))
 
             # Learning Goals
-            learning_goals = LearningGoal.objects.all()
+            learning_goals = for_user(LearningGoal, user)
             active_learning = [g for g in learning_goals if g.status == 'IN_PROGRESS']
 
             # Daily questions
@@ -262,9 +307,10 @@ class DashboardView(APIView):
                         for t in tasks_due_today
                     ],
                     "summary": (
-                        f"{len(tasks_due_today)} task{'s' if len(tasks_due_today) > 1 else ''} scheduled for today."
+                        f"{len(tasks_due_today)} task{'s' if len(tasks_due_today) > 1 else ''} for today "
+                        f"(includes open tasks with no due date)."
                         if tasks_due_today
-                        else "No urgent tasks due today. Great time to get ahead!"
+                        else "No open tasks for today."
                     ),
                 },
                 "moneyToPay": {
@@ -318,6 +364,7 @@ class DashboardView(APIView):
                 "success": True,
                 "stats": {
                     "totalTasks": all_tasks.count(),
+                    "openCount": len(open_tasks),
                     "dueTodayCount": len(tasks_due_today),
                     "overdueCount": len(overdue_tasks),
                     "upcomingCount": len(upcoming_tasks),
@@ -334,15 +381,19 @@ class DashboardView(APIView):
                 },
                 "dailyQuestions": daily_questions,
                 "habits": HabitSerializer(all_habits, many=True).data,
-                "notes": NoteSerializer(Note.objects.all()[:5], many=True).data,
+                "notes": NoteSerializer(for_user(Note, user)[:5], many=True).data,
                 "learningGoals": LearningGoalSerializer(learning_goals, many=True).data,
                 "settings": UserSettingsSerializer(settings).data,
-                "dbStatus": {
-                    "connected": True,
-                    "host": DB_HOST,
-                    "name": DB_NAME,
-                    "engine": "PostgreSQL",
-                },
+                "dbStatus": (
+                    {
+                        "connected": True,
+                        "host": DB_HOST,
+                        "name": DB_NAME,
+                        "engine": "PostgreSQL",
+                    }
+                    if is_super_admin(user)
+                    else {"connected": True}
+                ),
             })
         except Exception as e:
             return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -356,7 +407,7 @@ class TasksView(APIView):
             stat = request.GET.get('status')
             filt = request.GET.get('filter')
 
-            qs = Task.objects.all()
+            qs = for_user(Task, request.user)
             if category and category != 'ALL':
                 qs = qs.filter(category=category)
             if priority and priority != 'ALL':
@@ -388,6 +439,7 @@ class TasksView(APIView):
 
             due_date = data.get('dueDate') or data.get('due_date')
             task = Task.objects.create(
+                user=request.user,
                 title=data['title'],
                 description=data.get('description', ''),
                 category=data.get('category', 'PERSONAL'),
@@ -408,7 +460,7 @@ class TasksView(APIView):
             if not task_id:
                 return Response({"success": False, "error": "Task ID is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            task = Task.objects.filter(id=task_id).first()
+            task = Task.objects.filter(id=task_id, user=request.user).first()
             if not task:
                 return Response({"success": False, "error": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -445,7 +497,7 @@ class TasksView(APIView):
             if not task_id:
                 return Response({"success": False, "error": "Task ID is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            Task.objects.filter(id=task_id).delete()
+            Task.objects.filter(id=task_id, user=request.user).delete()
             return Response({"success": True, "message": "Task deleted successfully"})
         except Exception as e:
             return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -454,10 +506,11 @@ class TasksView(APIView):
 class FinanceView(APIView):
     def get(self, request):
         try:
+            user = request.user
             view = request.GET.get('view')
-            transactions = Transaction.objects.all() if view != 'debts' else []
-            debts = Debt.objects.all() if view != 'transactions' else []
-            bills = Bill.objects.all() if view not in ('transactions', 'debts') else []
+            transactions = for_user(Transaction, user) if view != 'debts' else []
+            debts = for_user(Debt, user) if view != 'transactions' else []
+            bills = for_user(Bill, user) if view not in ('transactions', 'debts') else []
 
             return Response({
                 "success": True,
@@ -491,6 +544,7 @@ class FinanceView(APIView):
 
                 due_date = data.get('dueDate') or data.get('due_date')
                 debt = Debt.objects.create(
+                    user=request.user,
                     person_name=person_name,
                     type=debt_type,
                     total_amount=total_float,
@@ -508,6 +562,7 @@ class FinanceView(APIView):
 
                 recharge_date = data.get('rechargeDate') or data.get('recharge_date') or timezone.localdate().isoformat()
                 bill = Bill.objects.create(
+                    user=request.user,
                     title=title,
                     amount=float(data.get('amount') or 0),
                     category=data.get('category', 'MOBILE'),
@@ -527,6 +582,7 @@ class FinanceView(APIView):
 
             date_val = data.get('date')
             trans = Transaction.objects.create(
+                user=request.user,
                 title=title,
                 type=t_type,
                 amount=float(amount),
@@ -546,7 +602,7 @@ class FinanceView(APIView):
 
             if item_type == 'bill':
                 bill_id = data.get('billId') or data.get('id')
-                bill = Bill.objects.filter(id=bill_id).first()
+                bill = Bill.objects.filter(id=bill_id, user=request.user).first()
                 if not bill:
                     return Response({"success": False, "error": "Bill not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -584,7 +640,7 @@ class FinanceView(APIView):
             if not debt_id or repayment_amount is None:
                 return Response({"success": False, "error": "debtId and repaymentAmount are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            debt = Debt.objects.filter(id=debt_id).first()
+            debt = Debt.objects.filter(id=debt_id, user=request.user).first()
             if not debt:
                 return Response({"success": False, "error": "Debt not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -616,11 +672,11 @@ class FinanceView(APIView):
                 return Response({"success": False, "error": "id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
             if item_type == 'debt':
-                Debt.objects.filter(id=item_id).delete()
+                Debt.objects.filter(id=item_id, user=request.user).delete()
             elif item_type == 'bill':
-                Bill.objects.filter(id=item_id).delete()
+                Bill.objects.filter(id=item_id, user=request.user).delete()
             else:
-                Transaction.objects.filter(id=item_id).delete()
+                Transaction.objects.filter(id=item_id, user=request.user).delete()
 
             return Response({"success": True, "message": "Item deleted successfully"})
         except Exception as e:
@@ -630,8 +686,8 @@ class FinanceView(APIView):
 class GrowthView(APIView):
     def get(self, request):
         try:
-            goals = LearningGoal.objects.all()
-            jobs = JobApplication.objects.all()
+            goals = for_user(LearningGoal, request.user)
+            jobs = for_user(JobApplication, request.user)
             return Response({
                 "success": True,
                 "learningGoals": LearningGoalSerializer(goals, many=True).data,
@@ -655,6 +711,7 @@ class GrowthView(APIView):
                 follow_up_date = data.get('followUpDate') or data.get('follow_up_date')
 
                 job = JobApplication.objects.create(
+                    user=request.user,
                     company=company,
                     role=role,
                     status=data.get('status', 'APPLIED'),
@@ -672,6 +729,7 @@ class GrowthView(APIView):
 
                 progress = int(data.get('progressPercentage', data.get('progress_percentage', 0)))
                 goal = LearningGoal.objects.create(
+                    user=request.user,
                     title=title,
                     category=data.get('category', 'OTHER'),
                     platform_or_course=data.get('platformOrCourse', data.get('platform_or_course', '')),
@@ -694,7 +752,7 @@ class GrowthView(APIView):
                 return Response({"success": False, "error": "id and type are required"}, status=status.HTTP_400_BAD_REQUEST)
 
             if g_type == 'job':
-                job = JobApplication.objects.filter(id=item_id).first()
+                job = JobApplication.objects.filter(id=item_id, user=request.user).first()
                 if not job:
                     return Response({"success": False, "error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
                 if 'company' in data: job.company = data['company']
@@ -709,7 +767,7 @@ class GrowthView(APIView):
                 job.save()
                 return Response({"success": True, "item": JobApplicationSerializer(job).data})
             else:
-                goal = LearningGoal.objects.filter(id=item_id).first()
+                goal = LearningGoal.objects.filter(id=item_id, user=request.user).first()
                 if not goal:
                     return Response({"success": False, "error": "Goal not found"}, status=status.HTTP_404_NOT_FOUND)
                 if 'title' in data: goal.title = data['title']
@@ -739,9 +797,9 @@ class GrowthView(APIView):
                 return Response({"success": False, "error": "id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
             if g_type == 'job':
-                JobApplication.objects.filter(id=item_id).delete()
+                JobApplication.objects.filter(id=item_id, user=request.user).delete()
             else:
-                LearningGoal.objects.filter(id=item_id).delete()
+                LearningGoal.objects.filter(id=item_id, user=request.user).delete()
             return Response({"success": True, "message": "Item deleted successfully"})
         except Exception as e:
             return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -750,7 +808,7 @@ class GrowthView(APIView):
 class HabitsView(APIView):
     def get(self, request):
         try:
-            habits = Habit.objects.all()
+            habits = for_user(Habit, request.user)
             return Response({"success": True, "habits": HabitSerializer(habits, many=True).data})
         except Exception as e:
             return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -763,6 +821,7 @@ class HabitsView(APIView):
                 return Response({"success": False, "error": "Habit name is required"}, status=status.HTTP_400_BAD_REQUEST)
 
             habit = Habit.objects.create(
+                user=request.user,
                 name=name,
                 category=data.get('category', 'ROUTINE'),
                 target_days_per_week=int(data.get('targetDaysPerWeek', data.get('target_days_per_week', 7))),
@@ -782,7 +841,7 @@ class HabitsView(APIView):
             if not habit_id or not date_str:
                 return Response({"success": False, "error": "Habit ID and dateStr are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            habit = Habit.objects.filter(id=habit_id).first()
+            habit = Habit.objects.filter(id=habit_id, user=request.user).first()
             if not habit:
                 return Response({"success": False, "error": "Habit not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -806,7 +865,7 @@ class HabitsView(APIView):
             if not habit_id:
                 return Response({"success": False, "error": "Habit ID is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            Habit.objects.filter(id=habit_id).delete()
+            Habit.objects.filter(id=habit_id, user=request.user).delete()
             return Response({"success": True, "message": "Habit deleted successfully"})
         except Exception as e:
             return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -815,7 +874,7 @@ class HabitsView(APIView):
 class NotesView(APIView):
     def get(self, request):
         try:
-            notes = Note.objects.all()
+            notes = for_user(Note, request.user)
             return Response({"success": True, "notes": NoteSerializer(notes, many=True).data})
         except Exception as e:
             return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -828,6 +887,7 @@ class NotesView(APIView):
                 return Response({"success": False, "error": "Title is required"}, status=status.HTTP_400_BAD_REQUEST)
 
             note = Note.objects.create(
+                user=request.user,
                 title=title,
                 content=data.get('content', ''),
                 category=data.get('category', 'GENERAL'),
@@ -845,7 +905,7 @@ class NotesView(APIView):
             if not note_id:
                 return Response({"success": False, "error": "Note ID is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            note = Note.objects.filter(id=note_id).first()
+            note = Note.objects.filter(id=note_id, user=request.user).first()
             if not note:
                 return Response({"success": False, "error": "Note not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -867,7 +927,7 @@ class NotesView(APIView):
             if not note_id:
                 return Response({"success": False, "error": "Note ID is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            Note.objects.filter(id=note_id).delete()
+            Note.objects.filter(id=note_id, user=request.user).delete()
             return Response({"success": True, "message": "Note deleted"})
         except Exception as e:
             return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -876,31 +936,33 @@ class NotesView(APIView):
 class SettingsView(APIView):
     def get(self, request):
         try:
-            settings = get_or_create_settings()
-            start_ping = time.time()
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT 1;")
-                cursor.fetchone()
-            ping_latency = round((time.time() - start_ping) * 1000, 2)
-
-            return Response({
+            settings = get_or_create_settings(request.user)
+            payload = {
                 "success": True,
                 "settings": UserSettingsSerializer(settings).data,
-                "dbStatus": {
+            }
+            # DB host/name/latency + ping are superadmin-only (Arjun)
+            if is_super_admin(request.user):
+                start_ping = time.time()
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1;")
+                    cursor.fetchone()
+                ping_latency = round((time.time() - start_ping) * 1000, 2)
+                payload["dbStatus"] = {
                     "connected": True,
                     "host": DB_HOST,
                     "name": DB_NAME,
                     "engine": "PostgreSQL",
                     "latencyMs": ping_latency,
-                },
-            })
+                }
+            return Response(payload)
         except Exception as e:
             return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request):
         try:
             data = request.data
-            settings = get_or_create_settings()
+            settings = get_or_create_settings(request.user)
 
             if 'userName' in data or 'user_name' in data:
                 settings.user_name = data.get('userName', data.get('user_name'))
@@ -924,19 +986,20 @@ class SettingsView(APIView):
 class SeedView(APIView):
     def post(self, request):
         try:
+            user = request.user
             force = request.data.get('force', False)
-            if Task.objects.count() > 0 and not force:
+            if for_user(Task, user).count() > 0 and not force:
                 return Response({"success": True, "message": "Data already initialized. Reset not forced."})
 
             if force:
-                Task.objects.all().delete()
-                Transaction.objects.all().delete()
-                Debt.objects.all().delete()
-                Bill.objects.all().delete()
-                Habit.objects.all().delete()
-                LearningGoal.objects.all().delete()
-                JobApplication.objects.all().delete()
-                Note.objects.all().delete()
+                for_user(Task, user).delete()
+                for_user(Transaction, user).delete()
+                for_user(Debt, user).delete()
+                for_user(Bill, user).delete()
+                for_user(Habit, user).delete()
+                for_user(LearningGoal, user).delete()
+                for_user(JobApplication, user).delete()
+                for_user(Note, user).delete()
 
             now = timezone.now()
             today = now
@@ -944,23 +1007,23 @@ class SeedView(APIView):
             tomorrow = now + timezone.timedelta(days=1)
             in_three_days = now + timezone.timedelta(days=3)
 
-            # 1. Auth user + settings
-            ensure_default_user()
+            # 1. Per-user settings
             UserSettings.objects.update_or_create(
-                id=1,
+                user=user,
                 defaults={
-                    "user_name": "Arjun",
+                    "user_name": user.first_name or user.username or "Arjun",
                     "monthly_income": 15000,
                     "monthly_emi_commitment": 4500,
                     "savings_target": 1000,
                     "currency": "₹",
                     "timezone": "Asia/Kolkata",
-                }
+                },
             )
 
             # 2. Tasks
             Task.objects.bulk_create([
                 Task(
+                    user=user,
                     title="Review monthly EMI payment and verify bank balance",
                     description="Ensure funds are in the account before auto-debit on the 25th",
                     category="FINANCE",
@@ -971,6 +1034,7 @@ class SeedView(APIView):
                     tags=["EMI", "Banking", "Urgent"],
                 ),
                 Task(
+                    user=user,
                     title="Complete Next.js App Router & Django REST API integration",
                     description="Connect Next.js frontend to Python Django + PostgreSQL backend",
                     category="LEARNING",
@@ -982,6 +1046,7 @@ class SeedView(APIView):
                     tags=["Coding", "Next.js", "Django", "PostgreSQL"],
                 ),
                 Task(
+                    user=user,
                     title="Update resume with latest full-stack project details",
                     description="Highlight PostgreSQL, Python Django, Next.js, and TypeScript development experience",
                     category="WORK",
@@ -992,6 +1057,7 @@ class SeedView(APIView):
                     tags=["Career", "Resume"],
                 ),
                 Task(
+                    user=user,
                     title="Pay monthly broadband & electricity utility bills",
                     description="Check bill due dates on consumer portal",
                     category="FINANCE",
@@ -1002,6 +1068,7 @@ class SeedView(APIView):
                     tags=["Bills", "Monthly"],
                 ),
                 Task(
+                    user=user,
                     title="Review Python and Django data modeling practice questions",
                     description="Prepare for upcoming technical screening interviews",
                     category="LEARNING",
@@ -1016,6 +1083,7 @@ class SeedView(APIView):
             # 3. Transactions
             Transaction.objects.bulk_create([
                 Transaction(
+                    user=user,
                     title="Monthly Salary Credit",
                     type="INCOME",
                     amount=15000,
@@ -1025,6 +1093,7 @@ class SeedView(APIView):
                     notes="Direct bank deposit",
                 ),
                 Transaction(
+                    user=user,
                     title="Two-Wheeler Loan EMI",
                     type="EXPENSE",
                     amount=4500,
@@ -1034,6 +1103,7 @@ class SeedView(APIView):
                     notes="Auto-debit for bike loan",
                 ),
                 Transaction(
+                    user=user,
                     title="Monthly Grocery & Supplies",
                     type="EXPENSE",
                     amount=3200,
@@ -1043,6 +1113,7 @@ class SeedView(APIView):
                     notes="Supermarket essentials",
                 ),
                 Transaction(
+                    user=user,
                     title="Broadband Internet Recharge",
                     type="EXPENSE",
                     amount=799,
@@ -1052,6 +1123,7 @@ class SeedView(APIView):
                     notes="Fiber optic unlimited plan",
                 ),
                 Transaction(
+                    user=user,
                     title="Freelance Technical Writing",
                     type="INCOME",
                     amount=2500,
@@ -1065,6 +1137,7 @@ class SeedView(APIView):
             # 4. Debts
             Debt.objects.bulk_create([
                 Debt(
+                    user=user,
                     person_name="Rohan (College Friend)",
                     type="OWED_BY_ME",
                     total_amount=2000,
@@ -1079,6 +1152,7 @@ class SeedView(APIView):
                     }],
                 ),
                 Debt(
+                    user=user,
                     person_name="Kiran",
                     type="OWED_TO_ME",
                     total_amount=1500,
@@ -1094,6 +1168,7 @@ class SeedView(APIView):
             today_str = now.strftime('%Y-%m-%d')
             Habit.objects.bulk_create([
                 Habit(
+                    user=user,
                     name="Daily 45-min Django & Full-stack Coding",
                     category="STUDY",
                     target_days_per_week=6,
@@ -1105,6 +1180,7 @@ class SeedView(APIView):
                     icon="Code",
                 ),
                 Habit(
+                    user=user,
                     name="Morning Exercise & Stretching",
                     category="HEALTH",
                     target_days_per_week=5,
@@ -1116,6 +1192,7 @@ class SeedView(APIView):
                     icon="Activity",
                 ),
                 Habit(
+                    user=user,
                     name="Read Technical Documentation & Tech Blogs",
                     category="CAREER",
                     target_days_per_week=5,
@@ -1131,6 +1208,7 @@ class SeedView(APIView):
             # 6. Learning Goals
             LearningGoal.objects.bulk_create([
                 LearningGoal(
+                    user=user,
                     title="Master Django REST Framework & PostgreSQL",
                     category="CODING",
                     platform_or_course="Official Docs & Real Project Practice",
@@ -1141,6 +1219,7 @@ class SeedView(APIView):
                     notes="Focusing on query optimization and JWT authentication",
                 ),
                 LearningGoal(
+                    user=user,
                     title="Next.js App Router Full-Stack Mastery",
                     category="CODING",
                     platform_or_course="Full Stack Next.js Course",
@@ -1155,6 +1234,7 @@ class SeedView(APIView):
             # 7. Job Applications
             JobApplication.objects.bulk_create([
                 JobApplication(
+                    user=user,
                     company="TechSolutions Labs",
                     role="Junior Full Stack Engineer (Python/Django + React)",
                     status="INTERVIEWING",
@@ -1165,6 +1245,7 @@ class SeedView(APIView):
                     follow_up_date=now + timezone.timedelta(days=2),
                 ),
                 JobApplication(
+                    user=user,
                     company="Nexus Innovate",
                     role="Backend Developer (Django & PostgreSQL)",
                     status="APPLIED",
@@ -1179,6 +1260,7 @@ class SeedView(APIView):
             # 8. Notes
             Note.objects.bulk_create([
                 Note(
+                    user=user,
                     title="Career Plan: 6-Month Goals",
                     content="1. Solidify Django + PostgreSQL backend skillset\n2. Master React & Next.js frontend state and performance\n3. Deploy 2 production-ready showcase apps on cloud\n4. Target Full Stack Developer role at high-growth tech firm",
                     category="CAREER",
@@ -1186,6 +1268,7 @@ class SeedView(APIView):
                     tags=["Career", "Goals", "Roadmap"],
                 ),
                 Note(
+                    user=user,
                     title="Finance Rules to Follow",
                     content="1. Always maintain ₹1,000 monthly emergency savings\n2. Pay EMI before the 25th of every month\n3. Never take high-interest consumer credit\n4. Record all expenses on the same day",
                     category="FINANCE",
@@ -1210,7 +1293,7 @@ class AssistantBriefingView(APIView):
             force = str(request.GET.get("refresh", "")).lower() in ("1", "true", "yes")
             from .assistant_service import generate_briefing, ASSISTANT_NAME
 
-            briefing = generate_briefing(force_refresh=force)
+            briefing = generate_briefing(force_refresh=force, user=request.user)
             return Response(
                 {
                     "success": True,
@@ -1226,18 +1309,56 @@ class AssistantBriefingView(APIView):
 
 
 class AssistantReindexView(APIView):
-    """Rebuild Smrti RAG index from tasks, habits, learning, notes, knowledge."""
+    """Rebuild Smrti RAG index — superadmin (Arjun) only."""
 
     def post(self, request):
         try:
+            if not is_super_admin(request.user):
+                return Response(
+                    {
+                        "success": False,
+                        "error": "Only the Dayflow superadmin can rebuild Niva memory.",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             from .assistant_service import index_workspace, ASSISTANT_NAME
+            from api.niva.services.rag.indexer import index_free_text
 
-            counts = index_workspace(force_embed=True)
+            counts = index_workspace(force_embed=True, user=request.user)
+            free_text = index_free_text(request.user, force_embed=True)
             return Response(
                 {
                     "success": True,
                     "assistant": ASSISTANT_NAME,
                     "indexed": counts,
+                    "freeTextRag": free_text,
+                }
+            )
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class AdminUsersView(APIView):
+    """List Dayflow users — superadmin only."""
+
+    def get(self, request):
+        if not is_super_admin(request.user):
+            return Response(
+                {"success": False, "error": "Superadmin only"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            from .niva.services.tools.admin_tools import users_list
+
+            result = users_list(user=request.user)
+            return Response(
+                {
+                    "success": True,
+                    "users": (result.get("data") or {}).get("users") or [],
+                    "count": (result.get("data") or {}).get("count") or 0,
                 }
             )
         except Exception as e:
@@ -1248,7 +1369,7 @@ class AssistantReindexView(APIView):
 
 
 class AssistantCaptureView(APIView):
-    """Tell Smrti something to remember — creates a Dayflow task."""
+    """Tell Niva something to remember — creates a Dayflow task."""
 
     def post(self, request):
         try:
@@ -1260,10 +1381,117 @@ class AssistantCaptureView(APIView):
                 or request.data.get("content")
                 or ""
             )
-            result = capture_message(message)
+            result = capture_message(message, user=request.user)
             if not result.get("success"):
                 return Response(result, status=status.HTTP_400_BAD_REQUEST)
             return Response(result, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class AssistantChatView(APIView):
+    """Niva chat — routed through v2 orchestrator (intent → tools → compose)."""
+
+    def post(self, request):
+        try:
+            from .niva.services.orchestrator import process_message
+
+            message = (
+                request.data.get("message")
+                or request.data.get("text")
+                or request.data.get("content")
+                or ""
+            )
+            history = request.data.get("history") or []
+            if not isinstance(history, list):
+                history = []
+            force_create = bool(
+                request.data.get("createTask")
+                or request.data.get("forceCreateTask")
+                or request.data.get("addAsTask")
+            )
+            draft = request.data.get("draftTask") or request.data.get("suggestedTask")
+            if draft is not None and not isinstance(draft, dict):
+                draft = None
+            conversation_id = request.data.get("conversation_id")
+            try:
+                conversation_id = int(conversation_id) if conversation_id else None
+            except (TypeError, ValueError):
+                conversation_id = None
+
+            result = process_message(
+                message,
+                user=request.user,
+                history=history,
+                force_create_task=force_create,
+                draft_task=draft,
+                conversation_id=conversation_id,
+            )
+            if not result.get("success"):
+                return Response(result, status=status.HTTP_400_BAD_REQUEST)
+            status_code = (
+                status.HTTP_201_CREATED
+                if result.get("tasksCreated") or result.get("memoriesSaved")
+                else status.HTTP_200_OK
+            )
+            return Response(result, status=status_code)
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class AssistantMemoryView(APIView):
+    """List / forget per-user Niva memories."""
+
+    def get(self, request):
+        try:
+            from .assistant_service import list_memories
+
+            return Response(
+                {
+                    "success": True,
+                    "memories": list_memories(user=request.user, limit=50),
+                }
+            )
+        except Exception as e:
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def delete(self, request):
+        try:
+            from .models import AssistantMemory
+
+            memory_id = request.data.get("id") or request.query_params.get("id")
+            if not memory_id:
+                return Response(
+                    {"success": False, "error": "id is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            mem = AssistantMemory.objects.filter(
+                user=request.user, id=memory_id, is_active=True
+            ).first()
+            if not mem:
+                return Response(
+                    {"success": False, "error": "Memory not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            mem.is_active = False
+            mem.save(update_fields=["is_active", "updated_at"])
+            from .models import AssistantChunk, AssistantSourceType
+
+            AssistantChunk.objects.filter(
+                user=request.user,
+                source_type=AssistantSourceType.MEMORY,
+                source_id=f"mem-{mem.id}",
+            ).delete()
+            return Response({"success": True, "id": mem.id})
         except Exception as e:
             return Response(
                 {"success": False, "error": str(e)},

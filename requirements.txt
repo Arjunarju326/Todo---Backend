@@ -7,4 +7,7 @@ google-cloud-storage>=2.10.0
 django-storages>=1.14.0
 google-generativeai>=0.8.0
 pgvector>=0.3.6
+# Optional — Niva proactive jobs (also: python manage.py niva_proactive)
+celery>=5.3.0
+redis>=5.0.0
 
